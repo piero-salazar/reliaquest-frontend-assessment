@@ -9,7 +9,37 @@ export interface Pokemon {
 }
 
 export interface PokemonDetail extends Pokemon {
-  // Details
+  captureRate: number;
+  height: number;
+  weight: number;
+  stats: PokemonStat[];
+}
+
+interface PokemonResponseType {
+  type: {
+    typenames: {
+      name: string;
+    }[];
+  };
+}
+
+interface PokemonResponseSprite {
+  sprites: string;
+}
+
+interface PokemonResponseStat {
+  stat: { name: string };
+  base_stat: number;
+}
+interface PokemonResponse {
+  pokemontypes: PokemonResponseType[];
+  pokemonsprites: PokemonResponseSprite[];
+  pokemonstats: PokemonResponseStat[];
+}
+
+interface PokemonStat {
+  name: string;
+  value: number;
 }
 
 export const GET_POKEMONS = gql`
@@ -44,7 +74,7 @@ export const GET_POKEMONS = gql`
 `;
 
 export const GET_POKEMON_DETAILS = gql`
-  query GetPokemonDetails($id: String!) {
+  query GetPokemonDetails($id: Int!) {
     pokemon(where: { id: { _eq: $id } }) {
       id
       pokemonspecy {
@@ -75,6 +105,19 @@ export const GET_POKEMON_DETAILS = gql`
   }
 `;
 
+const getPokemonTypes = (p: PokemonResponse): string[] =>
+  p.pokemontypes.map((pokeType: PokemonResponseType): string => pokeType.type.typenames?.[0].name);
+
+const getPokemonImage = (p: PokemonResponse): string => p.pokemonsprites?.[0].sprites;
+
+const getPokemonStats = (p: PokemonResponse): PokemonStat[] =>
+  p.pokemonstats.map(
+    (pokeStat: PokemonResponseStat): PokemonStat => ({
+      name: pokeStat.stat.name,
+      value: pokeStat.base_stat,
+    }),
+  );
+
 // Search should be done client-side for the mid-level assessment. Uncomment for the senior assessment.
 export const useGetPokemons = (/* search?: string */): {
   data: Pokemon[];
@@ -93,8 +136,47 @@ export const useGetPokemons = (/* search?: string */): {
         (p): Pokemon => ({
           id: p.id,
           name: p.pokemonspecy.pokemonspeciesnames?.[0]?.name,
+          types: getPokemonTypes(p),
+          sprite: getPokemonImage(p),
         }),
       ) ?? [],
+    loading,
+    error,
+  };
+};
+
+export const useGetPokemonDetails = (
+  id: number,
+): {
+  data: PokemonDetail | null;
+  loading: boolean;
+  error: useQuery.Result['error'];
+} => {
+  const { data, loading, error } = useQuery<{ pokemon: any[] }>(GET_POKEMON_DETAILS, {
+    variables: {
+      id,
+    },
+  });
+
+  if (loading) {
+    return { data: null, loading, error };
+  }
+
+  const pokemon = data?.pokemon[0];
+
+  const pokemonDetail = {
+    id: pokemon?.id,
+    name: pokemon.pokemonspecy.pokemonspeciesnames?.[0]?.name,
+    types: getPokemonTypes(pokemon),
+    sprite: getPokemonImage(pokemon),
+    captureRate: pokemon.pokemonspecy?.capture_rate,
+    height: pokemon.height,
+    weight: pokemon.weight,
+    stats: getPokemonStats(pokemon),
+  };
+
+  return {
+    data: pokemonDetail,
     loading,
     error,
   };

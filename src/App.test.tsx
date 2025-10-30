@@ -6,7 +6,7 @@ jest.mock('../README.md', () => ({
   text: jest.fn().mockResolvedValue('hello world'),
 }));
 
-test('renders home page', () => {
-  const { getByTestId } = render(<App />);
-  expect(getByTestId('MockReactMarkdown')).toBeInTheDocument();
+test('renders home page', async () => {
+  const { findByTestId } = render(<App />);
+  expect(await findByTestId('MockReactMarkdown')).toBeInTheDocument();
 });
